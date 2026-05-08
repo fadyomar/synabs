@@ -3,6 +3,17 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 const COLORS = ['#00ffcc', '#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#ff922b', '#cc5de8', '#f06595'];
 
+const ELECTRODE_POSITIONS: Record<string, { x: number; y: number }> = {
+  CH1: { x: 0.35, y: 0.25 },
+  CH2: { x: 0.65, y: 0.25 },
+  CH3: { x: 0.25, y: 0.50 },
+  CH4: { x: 0.75, y: 0.50 },
+  CH5: { x: 0.35, y: 0.75 },
+  CH6: { x: 0.65, y: 0.75 },
+  CH7: { x: 0.40, y: 0.40 },
+  CH8: { x: 0.60, y: 0.40 },
+};
+
 function computeFFT(signal: number[], sampleRate: number): { freq: number; magnitude: number }[] {
   const N = signal.length;
   const result = [];
@@ -56,62 +67,38 @@ function generateInsights(fftData: { freq: number; magnitude: number }[], channe
   const beta = computeBandPower(fftData, 13, 30);
   const gamma = computeBandPower(fftData, 30, 50);
   const total = delta + theta + alpha + beta + gamma;
-
   const insights: { icon: string; color: string; title: string; desc: string }[] = [];
-
-  if (delta / total > 0.5)
-    insights.push({ icon: '🟣', color: '#cc5de8', title: 'Strong Delta Activity', desc: 'إشارة Delta عالية — ممكن تكون نوم عميق أو إشارة بطيئة' });
-
-  if (alpha / total > 0.15)
-    insights.push({ icon: '🟢', color: '#00ffcc', title: 'Alpha Activity Detected', desc: 'نشاط Alpha موجود — علامة على الاسترخاء أو التركيز الهادئ' });
-  else
-    insights.push({ icon: '⚪', color: '#888', title: 'Low Alpha Power', desc: 'نشاط Alpha منخفض' });
-
-  if (beta / total > 0.2)
-    insights.push({ icon: '🟡', color: '#ffd93d', title: 'Beta Activity Detected', desc: 'نشاط Beta موجود — علامة على التركيز أو النشاط الذهني' });
-
-  if (theta / total > 0.15)
-    insights.push({ icon: '🔵', color: '#4d96ff', title: 'Theta Activity Detected', desc: 'نشاط Theta موجود — ممكن يكون نعاس أو تأمل' });
-
-  if (gamma / total > 0.1)
-    insights.push({ icon: '🔴', color: '#ff6b6b', title: 'Gamma Activity Detected', desc: 'نشاط Gamma موجود — معالجة معلومات عالية' });
-
+  if (delta / total > 0.5) insights.push({ icon: '🟣', color: '#cc5de8', title: 'Strong Delta Activity', desc: 'إشارة Delta عالية — ممكن تكون نوم عميق أو إشارة بطيئة' });
+  if (alpha / total > 0.15) insights.push({ icon: '🟢', color: '#00ffcc', title: 'Alpha Activity Detected', desc: 'نشاط Alpha موجود — علامة على الاسترخاء أو التركيز الهادئ' });
+  else insights.push({ icon: '⚪', color: '#888', title: 'Low Alpha Power', desc: 'نشاط Alpha منخفض' });
+  if (beta / total > 0.2) insights.push({ icon: '🟡', color: '#ffd93d', title: 'Beta Activity Detected', desc: 'نشاط Beta موجود — علامة على التركيز أو النشاط الذهني' });
+  if (theta / total > 0.15) insights.push({ icon: '🔵', color: '#4d96ff', title: 'Theta Activity Detected', desc: 'نشاط Theta موجود — ممكن يكون نعاس أو تأمل' });
+  if (gamma / total > 0.1) insights.push({ icon: '🔴', color: '#ff6b6b', title: 'Gamma Activity Detected', desc: 'نشاط Gamma موجود — معالجة معلومات عالية' });
   insights.push({ icon: '📶', color: '#6bcb77', title: 'Signal Quality: Good', desc: `${channels} قنوات — البيانات مكتملة` });
-
   const bands = [
-    { name: 'Delta', power: delta },
-    { name: 'Theta', power: theta },
-    { name: 'Alpha', power: alpha },
-    { name: 'Beta', power: beta },
-    { name: 'Gamma', power: gamma },
+    { name: 'Delta', power: delta }, { name: 'Theta', power: theta },
+    { name: 'Alpha', power: alpha }, { name: 'Beta', power: beta }, { name: 'Gamma', power: gamma },
   ];
   const dominant = bands.reduce((a, b) => a.power > b.power ? a : b);
   insights.push({ icon: '⚡', color: '#ff922b', title: `Dominant Band: ${dominant.name}`, desc: `الـ ${dominant.name} عنده أعلى طاقة في الإشارة` });
-
   return insights;
 }
 
 function SpectrogramCanvas({ data, sampleRate }: { data: number[][], sampleRate: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
   useEffect(() => {
     if (!canvasRef.current || data.length === 0) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d')!;
-    const W = canvas.width;
-    const H = canvas.height;
+    const W = canvas.width, H = canvas.height;
     const paddingLeft = 60, paddingBottom = 40, paddingTop = 20, paddingRight = 20;
     const plotW = W - paddingLeft - paddingRight;
     const plotH = H - paddingBottom - paddingTop;
-    const cols = data.length;
-    const rows = data[0].length;
-    const cellW = plotW / cols;
-    const cellH = plotH / rows;
-
+    const cols = data.length, rows = data[0].length;
+    const cellW = plotW / cols, cellH = plotH / rows;
     let maxVal = 0;
     data.forEach(col => col.forEach(v => { if (v > maxVal) maxVal = v; }));
     ctx.clearRect(0, 0, W, H);
-
     for (let t = 0; t < cols; t++) {
       for (let f = 0; f < rows; f++) {
         const val = data[t][f] / (maxVal || 1);
@@ -122,48 +109,151 @@ function SpectrogramCanvas({ data, sampleRate }: { data: number[][], sampleRate:
         ctx.fillRect(paddingLeft + t * cellW, paddingTop + (rows - f - 1) * cellH, cellW + 1, cellH + 1);
       }
     }
-
-    ctx.strokeStyle = '#00ffcc44';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#00ffcc44'; ctx.lineWidth = 1;
     ctx.strokeRect(paddingLeft, paddingTop, plotW, plotH);
-    ctx.font = '11px monospace';
-
     for (let i = 0; i <= 5; i++) {
       const x = paddingLeft + (i / 5) * plotW;
-      const timeVal = ((i / 5) * cols / 5).toFixed(2);
-      ctx.fillStyle = '#888888';
-      ctx.fillText(timeVal, x - 8, H - 10);
-      ctx.strokeStyle = '#ffffff11';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x, paddingTop); ctx.lineTo(x, paddingTop + plotH); ctx.stroke();
+      ctx.fillStyle = '#888'; ctx.font = '11px monospace';
+      ctx.fillText(((i / 5) * cols / 5).toFixed(2), x - 8, H - 10);
+      ctx.strokeStyle = '#ffffff11'; ctx.beginPath(); ctx.moveTo(x, paddingTop); ctx.lineTo(x, paddingTop + plotH); ctx.stroke();
     }
-
     const maxFreq = sampleRate / 2;
     for (let i = 0; i <= 4; i++) {
       const y = paddingTop + plotH - (i / 4) * plotH;
-      const freqVal = Math.round((i / 4) * maxFreq);
-      ctx.fillStyle = '#888888';
-      ctx.fillText(`${freqVal} Hz`, paddingLeft - 50, y + 4);
-      ctx.strokeStyle = '#ffffff11';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(paddingLeft, y); ctx.lineTo(paddingLeft + plotW, y); ctx.stroke();
+      ctx.fillStyle = '#888'; ctx.fillText(`${Math.round((i / 4) * maxFreq)} Hz`, paddingLeft - 50, y + 4);
+      ctx.strokeStyle = '#ffffff11'; ctx.beginPath(); ctx.moveTo(paddingLeft, y); ctx.lineTo(paddingLeft + plotW, y); ctx.stroke();
     }
-
-    ctx.fillStyle = '#aaaaaa';
-    ctx.font = '12px monospace';
+    ctx.fillStyle = '#aaa'; ctx.font = '12px monospace';
     ctx.fillText('Time (windows)', paddingLeft + plotW / 2 - 45, H - 2);
-    ctx.save();
-    ctx.translate(12, paddingTop + plotH / 2 + 50);
-    ctx.rotate(-Math.PI / 2);
-    ctx.fillStyle = '#aaaaaa';
-    ctx.fillText('Frequency (Hz)', 0, 0);
-    ctx.restore();
+    ctx.save(); ctx.translate(12, paddingTop + plotH / 2 + 50); ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = '#aaa'; ctx.fillText('Frequency (Hz)', 0, 0); ctx.restore();
   }, [data, sampleRate]);
-
   return (
     <div style={{ backgroundColor: '#0a0a0f', border: '1px solid #00ffcc33', borderRadius: '12px', padding: '16px', width: '100%' }}>
       <canvas ref={canvasRef} width={800} height={380} style={{ width: '100%', height: '380px', borderRadius: '8px', display: 'block' }} />
     </div>
+  );
+}
+
+function TopoMap({ channelPowers, channels }: { channelPowers: Record<string, number>, channels: string[] }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (!canvasRef.current || channels.length === 0) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d')!;
+    const W = canvas.width, H = canvas.height;
+    const cx = W / 2, cy = H / 2;
+    const radius = Math.min(W, H) * 0.42;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // رسم دائرة المخ
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#0d0d1a';
+    ctx.fill();
+    ctx.strokeStyle = '#00ffcc44';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // رسم الأذنين
+    ctx.beginPath();
+    ctx.ellipse(cx - radius - 8, cy, 8, 18, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#0d0d1a';
+    ctx.fill();
+    ctx.strokeStyle = '#00ffcc44';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.ellipse(cx + radius + 8, cy, 8, 18, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#0d0d1a';
+    ctx.fill();
+    ctx.stroke();
+
+    // رسم الأنف
+    ctx.beginPath();
+    ctx.moveTo(cx - 12, cy - radius + 8);
+    ctx.lineTo(cx, cy - radius - 14);
+    ctx.lineTo(cx + 12, cy - radius + 8);
+    ctx.strokeStyle = '#00ffcc44';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // خطوط المخ
+    ctx.strokeStyle = '#ffffff08';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx, cy - radius); ctx.lineTo(cx, cy + radius); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - radius, cy); ctx.lineTo(cx + radius, cy); ctx.stroke();
+
+    // إيجاد أعلى وأدنى قيمة للألوان
+    const powers = channels.map(ch => channelPowers[ch] || 0);
+    const maxP = Math.max(...powers) || 1;
+    const minP = Math.min(...powers);
+
+    // رسم كل قناة
+    channels.forEach((ch: string) => {
+      const pos = ELECTRODE_POSITIONS[ch];
+      if (!pos) return;
+
+      const x = cx - radius + pos.x * radius * 2;
+      const y = cy - radius + pos.y * radius * 2;
+      const power = channelPowers[ch] || 0;
+      const norm = (power - minP) / (maxP - minP || 1);
+
+      // لون gradient من أزرق لأحمر
+      const r = Math.floor(norm * 255);
+      const g = Math.floor((1 - Math.abs(norm - 0.5) * 2) * 180);
+      const b = Math.floor((1 - norm) * 255);
+
+      // هالة ملونة
+      const gradient = ctx.createRadialGradient(x, y, 0, x, y, 35);
+      gradient.addColorStop(0, `rgba(${r},${g},${b},0.7)`);
+      gradient.addColorStop(1, `rgba(${r},${g},${b},0)`);
+      ctx.beginPath();
+      ctx.arc(x, y, 35, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // دائرة القناة
+      ctx.beginPath();
+      ctx.arc(x, y, 10, 0, Math.PI * 2);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff44';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // اسم القناة
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(ch, x, y + 22);
+    });
+
+    // Color bar
+    const barX = W - 30, barY = cy - 80, barH = 160, barW = 14;
+    const grad = ctx.createLinearGradient(0, barY, 0, barY + barH);
+    grad.addColorStop(0, 'rgb(255,0,0)');
+    grad.addColorStop(0.5, 'rgb(0,180,0)');
+    grad.addColorStop(1, 'rgb(0,0,255)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.strokeStyle = '#ffffff22';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(barX, barY, barW, barH);
+    ctx.fillStyle = '#888';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('High', barX + barW + 4, barY + 8);
+    ctx.fillText('Low', barX + barW + 4, barY + barH);
+
+  }, [channelPowers, channels]);
+
+  return (
+    <canvas ref={canvasRef} width={400} height={400}
+      style={{ width: '100%', maxWidth: '400px', height: 'auto', display: 'block', margin: '0 auto' }} />
   );
 }
 
@@ -176,34 +266,31 @@ function App() {
   const [fftData, setFftData] = useState<{ freq: number; magnitude: number }[]>([]);
   const [spectroData, setSpectroData] = useState<number[][]>([]);
   const [insights, setInsights] = useState<{ icon: string; color: string; title: string; desc: string }[]>([]);
-  const [activeTab, setActiveTab] = useState<'eeg' | 'fft' | 'spectrogram' | 'insights'>('eeg');
+  const [channelPowers, setChannelPowers] = useState<Record<string, number>>({});
+  const [activeTab, setActiveTab] = useState<'eeg' | 'fft' | 'spectrogram' | 'topomap' | 'insights'>('eeg');
 
   function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
-
     const reader = new FileReader();
     reader.onload = (e: ProgressEvent<FileReader>) => {
       const text = e.target?.result as string;
       const lines = text.trim().split('\n');
       const headers = lines[0].split(',').map((h: string) => h.trim());
       const eegChannels = headers.filter((h: string) => h !== 'timestamp');
-
       const rows = lines.slice(1).map((line: string) => {
         const values = line.split(',');
         const obj: Record<string, number> = {};
         headers.forEach((h: string, i: number) => { obj[h] = parseFloat(values[i]); });
         return obj;
       });
-
       const OFFSET = 30;
       const offsetRows = rows.map((row: Record<string, number>) => {
         const newRow: Record<string, number> = { timestamp: row.timestamp };
         eegChannels.forEach((ch: string, i: number) => { newRow[ch] = row[ch] + i * OFFSET; });
         return newRow;
       });
-
       let sr = 250;
       if (rows.length >= 2) {
         const dt = rows[1].timestamp - rows[0].timestamp;
@@ -211,6 +298,15 @@ function App() {
         setSampleRate(sr);
         setDuration(parseFloat(rows[rows.length - 1].timestamp.toFixed(3)));
       }
+
+      // حساب power لكل قناة
+      const powers: Record<string, number> = {};
+      eegChannels.forEach((ch: string) => {
+        const signal = rows.map((r: Record<string, number>) => r[ch]);
+        const rms = Math.sqrt(signal.reduce((sum, v) => sum + v * v, 0) / signal.length);
+        powers[ch] = rms;
+      });
+      setChannelPowers(powers);
 
       const ch1Signal = rows.map((r: Record<string, number>) => r[eegChannels[0]]);
       const fft = computeFFT(ch1Signal, sr);
@@ -261,16 +357,15 @@ function App() {
               { id: 'eeg', label: '📈 EEG Viewer' },
               { id: 'fft', label: '📊 FFT Viewer' },
               { id: 'spectrogram', label: '🌈 Spectrogram' },
-              { id: 'insights', label: '🧠 Insights' },
+              { id: 'topomap', label: '🧠 Topomap' },
+              { id: 'insights', label: '💡 Insights' },
             ].map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id as 'eeg' | 'fft' | 'spectrogram' | 'insights')} style={{
+              <button key={tab.id} onClick={() => setActiveTab(tab.id as 'eeg' | 'fft' | 'spectrogram' | 'topomap' | 'insights')} style={{
                 backgroundColor: activeTab === tab.id ? '#00ffcc' : 'transparent',
                 color: activeTab === tab.id ? '#0a0a0f' : '#00ffcc',
                 border: '1px solid #00ffcc', padding: '8px 20px', borderRadius: '6px',
                 cursor: 'pointer', fontFamily: 'monospace', fontWeight: 'bold', fontSize: '0.85rem'
-              }}>
-                {tab.label}
-              </button>
+              }}>{tab.label}</button>
             ))}
           </div>
         )}
@@ -338,9 +433,21 @@ function App() {
           </div>
         )}
 
+        {activeTab === 'topomap' && (
+          <div style={{ width: '100%', backgroundColor: '#0d0d1a', borderRadius: '12px', border: '1px solid #4d96ff22', padding: '24px' }}>
+            <p style={{ color: '#4d96ff', marginBottom: '4px' }}>🧠 Topomap — Brain Activity Map</p>
+            <p style={{ color: '#555', fontSize: '0.78rem', marginBottom: '16px' }}>
+              اللون الأحمر = نشاط عالي — الأزرق = نشاط منخفض — كل نقطة = قناة EEG
+            </p>
+            {channels.length > 0
+              ? <TopoMap channelPowers={channelPowers} channels={channels} />
+              : <p style={{ color: '#555' }}>ارفع ملف الأول</p>}
+          </div>
+        )}
+
         {activeTab === 'insights' && (
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <p style={{ color: '#00ffcc', fontSize: '1.1rem', margin: '0 0 8px 0' }}>🧠 EEG Insights — CH1</p>
+            <p style={{ color: '#00ffcc', fontSize: '1.1rem', margin: '0 0 8px 0' }}>💡 EEG Insights — CH1</p>
             <p style={{ color: '#555', fontSize: '0.78rem', margin: '0 0 16px 0' }}>تحليل أوتوماتيك للإشارة بناءً على قوة كل نطاق تردد</p>
             {insights.length > 0
               ? insights.map((ins, i: number) => (
@@ -356,8 +463,7 @@ function App() {
                   </div>
                 </div>
               ))
-              : <p style={{ color: '#555' }}>ارفع ملف الأول</p>
-            }
+              : <p style={{ color: '#555' }}>ارفع ملف الأول</p>}
           </div>
         )}
 
