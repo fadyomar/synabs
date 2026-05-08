@@ -17,7 +17,6 @@ const BRAND = {
 
 const shadow = "0 1px 3px rgba(15,23,42,0.08), 0 1px 2px rgba(15,23,42,0.04)";
 const shadowMd = "0 4px 12px rgba(15,23,42,0.08), 0 2px 4px rgba(15,23,42,0.04)";
-
 const COLORS = ["#0A84C6","#2563EB","#16A34A","#F59E0B","#8B5CF6","#EF4444","#0891B2","#D97706"];
 
 const ELECTRODE_POSITIONS: Record<string, { x: number; y: number }> = {
@@ -266,7 +265,6 @@ export default function App() {
 
   const bandColors: Record<string,string>={Delta:"#8B5CF6",Theta:"#0891B2",Alpha:"#0A84C6",Beta:"#F59E0B",Gamma:"#EF4444"};
   const maxBand=Math.max(...Object.values(bandPowers),0.0001);
-
   const cardStyle: React.CSSProperties={backgroundColor:BRAND.card,borderRadius:"16px",border:`1px solid ${BRAND.border}`,boxShadow:shadow,padding:"24px"};
   const emptyState=(
     <div style={{textAlign:"center",padding:"60px 0",color:BRAND.textSec}}>
@@ -279,7 +277,6 @@ export default function App() {
   return (
     <div style={{backgroundColor:BRAND.bg,minHeight:"100vh",fontFamily:"Inter,-apple-system,sans-serif",color:BRAND.text}}>
 
-      {/* HEADER */}
       <div style={{position:"sticky",top:0,zIndex:100,backgroundColor:"rgba(255,255,255,0.92)",backdropFilter:"blur(12px)",borderBottom:`1px solid ${BRAND.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04)"}}>
         <div style={{maxWidth:"1200px",margin:"0 auto",padding:"0 32px",height:"64px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
@@ -306,7 +303,6 @@ export default function App() {
           <p style={{fontSize:"14px",color:BRAND.textSec,margin:0}}>Upload EEG data to visualize signals, analyze frequency spectra, and extract cognitive insights.</p>
         </div>
 
-        {/* UPLOAD */}
         <div
           onDragOver={(e: React.DragEvent<HTMLDivElement>)=>{e.preventDefault();setDragging(true);}}
           onDragLeave={()=>setDragging(false)}
@@ -314,14 +310,13 @@ export default function App() {
           style={{...cardStyle,marginBottom:"24px",border:`2px dashed ${dragging?BRAND.primary:BRAND.border}`,backgroundColor:dragging?"#EFF6FF":BRAND.card,transition:"all 0.2s",textAlign:"center",padding:"32px"}}>
           <div style={{marginBottom:"12px",fontSize:"32px",opacity:0.5}}>🧠</div>
           <p style={{fontSize:"14px",color:BRAND.textSec,marginBottom:"16px"}}>Drag and drop your EEG file here, or click to browse</p>
-          <label style={{display:"inline-flex",alignItems:"center",gap:"8px",backgroundColor:BRAND.primary,color:"white",padding:"10px 24px",borderRadius:"8px",fontSize:"14px",fontWeight:600,cursor:"pointer",boxShadow:`0 4px 12px ${BRAND.primary}44`,transition:"all 0.2s"}}>
+          <label style={{display:"inline-flex",alignItems:"center",gap:"8px",backgroundColor:BRAND.primary,color:"white",padding:"10px 24px",borderRadius:"8px",fontSize:"14px",fontWeight:600,cursor:"pointer",boxShadow:`0 4px 12px ${BRAND.primary}44`}}>
             <span>↑</span> Upload EEG File (.csv)
             <input type="file" accept=".csv" style={{display:"none"}} onChange={handleUpload} />
           </label>
           {fileName&&<p style={{marginTop:"12px",fontSize:"12px",color:BRAND.primary,fontWeight:500}}>● {fileName}</p>}
         </div>
 
-        {/* STATS */}
         {fileName&&(
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:"12px",marginBottom:"24px"}}>
             {[
@@ -339,7 +334,6 @@ export default function App() {
           </div>
         )}
 
-        {/* TABS */}
         <div style={{display:"flex",gap:"2px",marginBottom:"0",backgroundColor:BRAND.card,borderRadius:"12px 12px 0 0",border:`1px solid ${BRAND.border}`,borderBottom:"none",padding:"6px 6px 0",overflowX:"auto"}}>
           {tabs.map(t=>(
             <button key={t.id} onClick={()=>setTab(t.id)} style={{
@@ -353,7 +347,6 @@ export default function App() {
           ))}
         </div>
 
-        {/* TAB CONTENT */}
         <div style={{...cardStyle,borderRadius:"0 12px 12px 12px",marginBottom:"24px"}}>
 
           {tab==="eeg"&&(chartData.length>0?(
@@ -485,94 +478,95 @@ export default function App() {
           ):emptyState)}
 
           {tab==="info"&&(
-  <div style={{display:"flex",flexDirection:"column",gap:"28px"}}>
-    <div style={{background:"linear-gradient(135deg,#EFF6FF 0%,#FFFFFF 100%)",border:`1px solid ${BRAND.border}`,borderRadius:"18px",padding:"28px",boxShadow:shadow}}>
-      <div style={{display:"flex",alignItems:"center",gap:"14px",marginBottom:"16px"}}>
-        <div style={{width:"56px",height:"56px",borderRadius:"16px",backgroundColor:"#EFF6FF",border:`1px solid ${BRAND.border}`,display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <SynapsLogo size={36}/>
-        </div>
-        <div>
-          <p style={{margin:"0 0 4px",fontSize:"11px",fontWeight:700,color:BRAND.primary,letterSpacing:"1.4px"}}>RESEARCH PROJECT</p>
-          <h2 style={{margin:0,fontSize:"24px",fontWeight:800,color:BRAND.text}}>Stroke Rehabilitation System Based on BCI Technique</h2>
-        </div>
-      </div>
-      <p style={{margin:0,fontSize:"14px",color:BRAND.textSec,lineHeight:1.8,maxWidth:"950px"}}>
-        Synaps is a neurotechnology platform developed to support EEG signal visualization, frequency-domain analysis, brain-computer interface research, and smart rehabilitation applications. The platform is part of a research project focused on developing a stroke rehabilitation system based on BCI techniques, combining neuroscience, signal processing, robotics, and artificial intelligence.
-      </p>
-    </div>
+            <div style={{display:"flex",flexDirection:"column",gap:"28px"}}>
 
-    <div>
-      <p style={{margin:"0 0 14px",fontSize:"12px",fontWeight:700,color:BRAND.textSec,letterSpacing:"1.2px"}}>RESEARCH TEAM</p>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))",gap:"18px"}}>
+              <div style={{background:"linear-gradient(135deg,#EFF6FF 0%,#FFFFFF 100%)",border:`1px solid ${BRAND.border}`,borderRadius:"18px",padding:"28px",boxShadow:shadow}}>
+                <div style={{display:"flex",alignItems:"center",gap:"14px",marginBottom:"16px"}}>
+                  <div style={{width:"56px",height:"56px",borderRadius:"16px",backgroundColor:"#EFF6FF",border:`1px solid ${BRAND.border}`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <SynapsLogo size={36}/>
+                  </div>
+                  <div>
+                    <p style={{margin:"0 0 4px",fontSize:"11px",fontWeight:700,color:BRAND.primary,letterSpacing:"1.4px"}}>RESEARCH PROJECT</p>
+                    <h2 style={{margin:0,fontSize:"24px",fontWeight:800,color:BRAND.text}}>Stroke Rehabilitation System Based on BCI Technique</h2>
+                  </div>
+                </div>
+                <p style={{margin:0,fontSize:"14px",color:BRAND.textSec,lineHeight:1.8,maxWidth:"950px"}}>
+                  Synaps is a neurotechnology platform developed to support EEG signal visualization, frequency-domain analysis, brain-computer interface research, and smart rehabilitation applications. The platform is part of a research project focused on developing a stroke rehabilitation system based on BCI techniques, combining neuroscience, signal processing, robotics, and artificial intelligence.
+                </p>
+              </div>
 
-        <div style={{backgroundColor:BRAND.card,border:`1px solid ${BRAND.border}`,borderRadius:"18px",padding:"22px",boxShadow:shadow,display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center"}}>
-          <img src="/fady.jpg" alt="Fady Mostafa" style={{width:"165px",height:"165px",borderRadius:"24px",objectFit:"cover",border:"3px solid #EFF6FF",boxShadow:shadowMd,marginBottom:"16px"}} />
-          <h3 style={{margin:"0 0 6px",fontSize:"20px",fontWeight:800,color:BRAND.text}}>Fady Mostafa</h3>
-          <p style={{margin:"0 0 10px",fontSize:"13px",fontWeight:600,color:BRAND.primary,lineHeight:1.6}}>M.Sc. in Robotics and Smart Systems</p>
-          <p style={{margin:0,fontSize:"13px",color:BRAND.textSec,lineHeight:1.7}}>Military Technical College, Egypt</p>
-          <div style={{marginTop:"14px",backgroundColor:"#EFF6FF",border:`1px solid ${BRAND.border}`,color:BRAND.primary,padding:"5px 12px",borderRadius:"99px",fontSize:"11px",fontWeight:700}}>
-            Robotics • Smart Systems • Neurotechnology
-          </div>
-        </div>
+              <div>
+                <p style={{margin:"0 0 14px",fontSize:"12px",fontWeight:700,color:BRAND.textSec,letterSpacing:"1.2px"}}>RESEARCH TEAM</p>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))",gap:"18px"}}>
 
-        <div style={{backgroundColor:BRAND.card,border:`1px solid ${BRAND.border}`,borderRadius:"18px",padding:"22px",boxShadow:shadow,display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center"}}>
-          <img src="/amr.jpg" alt="Amr Mostafa" style={{width:"165px",height:"165px",borderRadius:"24px",objectFit:"cover",border:"3px solid #EFF6FF",boxShadow:shadowMd,marginBottom:"16px"}} />
-          <h3 style={{margin:"0 0 6px",fontSize:"20px",fontWeight:800,color:BRAND.text}}>Amr Mostafa</h3>
-          <p style={{margin:"0 0 10px",fontSize:"13px",fontWeight:600,color:BRAND.primary,lineHeight:1.6}}>PhD Student in Neuroscience</p>
-          <p style={{margin:0,fontSize:"13px",color:BRAND.textSec,lineHeight:1.7}}>Queen's University, Canada</p>
-          <div style={{marginTop:"14px",backgroundColor:"#EFF6FF",border:`1px solid ${BRAND.border}`,color:BRAND.primary,padding:"5px 12px",borderRadius:"99px",fontSize:"11px",fontWeight:700}}>
-            Neuroscience • EEG • BCI Research
-          </div>
-        </div>
+                  <div style={{backgroundColor:BRAND.card,border:`1px solid ${BRAND.border}`,borderRadius:"18px",padding:"22px",boxShadow:shadow,display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center"}}>
+                    <img src="/fady.jfif" alt="Fady Mostafa" style={{width:"165px",height:"165px",borderRadius:"24px",objectFit:"cover",border:"3px solid #EFF6FF",boxShadow:shadowMd,marginBottom:"16px"}} />
+                    <h3 style={{margin:"0 0 6px",fontSize:"20px",fontWeight:800,color:BRAND.text}}>Fady Mostafa</h3>
+                    <p style={{margin:"0 0 10px",fontSize:"13px",fontWeight:600,color:BRAND.primary,lineHeight:1.6}}>M.Sc. in Robotics and Smart Systems</p>
+                    <p style={{margin:0,fontSize:"13px",color:BRAND.textSec,lineHeight:1.7}}>Military Technical College, Egypt</p>
+                    <div style={{marginTop:"14px",backgroundColor:"#EFF6FF",border:`1px solid ${BRAND.border}`,color:BRAND.primary,padding:"5px 12px",borderRadius:"99px",fontSize:"11px",fontWeight:700}}>
+                      Robotics • Smart Systems • Neurotechnology
+                    </div>
+                  </div>
 
-      </div>
-    </div>
+                  <div style={{backgroundColor:BRAND.card,border:`1px solid ${BRAND.border}`,borderRadius:"18px",padding:"22px",boxShadow:shadow,display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center"}}>
+                    <img src="/amr.jpeg" alt="Amr Mostafa" style={{width:"165px",height:"165px",borderRadius:"24px",objectFit:"cover",border:"3px solid #EFF6FF",boxShadow:shadowMd,marginBottom:"16px"}} />
+                    <h3 style={{margin:"0 0 6px",fontSize:"20px",fontWeight:800,color:BRAND.text}}>Amr Mostafa</h3>
+                    <p style={{margin:"0 0 10px",fontSize:"13px",fontWeight:600,color:BRAND.primary,lineHeight:1.6}}>PhD Student in Neuroscience</p>
+                    <p style={{margin:0,fontSize:"13px",color:BRAND.textSec,lineHeight:1.7}}>Queen's University, Canada</p>
+                    <div style={{marginTop:"14px",backgroundColor:"#EFF6FF",border:`1px solid ${BRAND.border}`,color:BRAND.primary,padding:"5px 12px",borderRadius:"99px",fontSize:"11px",fontWeight:700}}>
+                      Neuroscience • EEG • BCI Research
+                    </div>
+                  </div>
 
-    <div style={{backgroundColor:BRAND.card,border:`1px solid ${BRAND.border}`,borderRadius:"18px",padding:"24px",boxShadow:shadow}}>
-      <p style={{margin:"0 0 14px",fontSize:"12px",fontWeight:700,color:BRAND.textSec,letterSpacing:"1.2px"}}>PROJECT AFFILIATION AND SPONSORS</p>
-      <p style={{margin:"0 0 20px",fontSize:"14px",color:BRAND.textSec,lineHeight:1.8}}>
-        This platform was developed as part of the research project <strong style={{color:BRAND.text}}>"Stroke Rehabilitation System Based on BCI Technique"</strong> affiliated with the Prosthetics Technology Incubator and the Military Technical College, Egypt, with research sponsorship and support from the Academy of Scientific Research and Technology.
-      </p>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:"16px"}}>
+                </div>
+              </div>
 
-        <div style={{backgroundColor:BRAND.bg,border:`1px solid ${BRAND.border}`,borderRadius:"16px",padding:"18px",display:"flex",alignItems:"center",gap:"14px"}}>
-          <img src="/mtc-tipo-logo.png" alt="MTC TIPO" style={{width:"110px",height:"82px",objectFit:"contain",borderRadius:"12px",backgroundColor:"white",border:`1px solid ${BRAND.border}`,padding:"6px"}} />
-          <div>
-            <p style={{margin:"0 0 4px",fontSize:"14px",fontWeight:800,color:BRAND.text}}>Military Technical College / TIPO</p>
-            <p style={{margin:0,fontSize:"12px",color:BRAND.textSec,lineHeight:1.5}}>Prosthetics Technology Incubator, Egypt</p>
-          </div>
-        </div>
+              <div style={{backgroundColor:BRAND.card,border:`1px solid ${BRAND.border}`,borderRadius:"18px",padding:"24px",boxShadow:shadow}}>
+                <p style={{margin:"0 0 14px",fontSize:"12px",fontWeight:700,color:BRAND.textSec,letterSpacing:"1.2px"}}>PROJECT AFFILIATION AND SPONSORS</p>
+                <p style={{margin:"0 0 20px",fontSize:"14px",color:BRAND.textSec,lineHeight:1.8}}>
+                  This platform was developed as part of the research project <strong style={{color:BRAND.text}}>"Stroke Rehabilitation System Based on BCI Technique"</strong> affiliated with the Prosthetics Technology Incubator and the Military Technical College, Egypt, with research sponsorship and support from the Academy of Scientific Research and Technology.
+                </p>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:"16px"}}>
 
-        <div style={{backgroundColor:BRAND.bg,border:`1px solid ${BRAND.border}`,borderRadius:"16px",padding:"18px",display:"flex",alignItems:"center",gap:"14px"}}>
-          <img src="/asrt-logo.png" alt="ASRT" style={{width:"110px",height:"82px",objectFit:"contain",borderRadius:"12px",backgroundColor:"white",border:`1px solid ${BRAND.border}`,padding:"6px"}} />
-          <div>
-            <p style={{margin:"0 0 4px",fontSize:"14px",fontWeight:800,color:BRAND.text}}>Academy of Scientific Research and Technology</p>
-            <p style={{margin:0,fontSize:"12px",color:BRAND.textSec,lineHeight:1.5}}>Research sponsorship and scientific support</p>
-          </div>
-        </div>
+                  <div style={{backgroundColor:BRAND.bg,border:`1px solid ${BRAND.border}`,borderRadius:"16px",padding:"18px",display:"flex",alignItems:"center",gap:"14px"}}>
+                    <img src="/sponser_2.png" alt="MTC TIPO" style={{width:"110px",height:"82px",objectFit:"contain",borderRadius:"12px",backgroundColor:"white",border:`1px solid ${BRAND.border}`,padding:"6px"}} />
+                    <div>
+                      <p style={{margin:"0 0 4px",fontSize:"14px",fontWeight:800,color:BRAND.text}}>Military Technical College / TIPO</p>
+                      <p style={{margin:0,fontSize:"12px",color:BRAND.textSec,lineHeight:1.5}}>Prosthetics Technology Incubator, Egypt</p>
+                    </div>
+                  </div>
 
-        <div style={{backgroundColor:BRAND.bg,border:`1px solid ${BRAND.border}`,borderRadius:"16px",padding:"18px",display:"flex",alignItems:"center",gap:"14px"}}>
-          <img src="/queens-logo.jpg" alt="Queen's University" style={{width:"110px",height:"82px",objectFit:"contain",borderRadius:"12px",backgroundColor:"white",border:`1px solid ${BRAND.border}`,padding:"6px"}} />
-          <div>
-            <p style={{margin:"0 0 4px",fontSize:"14px",fontWeight:800,color:BRAND.text}}>Queen's University</p>
-            <p style={{margin:0,fontSize:"12px",color:BRAND.textSec,lineHeight:1.5}}>Neuroscience and BCI research contribution</p>
-          </div>
-        </div>
+                  <div style={{backgroundColor:BRAND.bg,border:`1px solid ${BRAND.border}`,borderRadius:"16px",padding:"18px",display:"flex",alignItems:"center",gap:"14px"}}>
+                    <img src="/sponser_1.png" alt="ASRT" style={{width:"110px",height:"82px",objectFit:"contain",borderRadius:"12px",backgroundColor:"white",border:`1px solid ${BRAND.border}`,padding:"6px"}} />
+                    <div>
+                      <p style={{margin:"0 0 4px",fontSize:"14px",fontWeight:800,color:BRAND.text}}>Academy of Scientific Research and Technology</p>
+                      <p style={{margin:0,fontSize:"12px",color:BRAND.textSec,lineHeight:1.5}}>Research sponsorship and scientific support</p>
+                    </div>
+                  </div>
 
-      </div>
-    </div>
+                  <div style={{backgroundColor:BRAND.bg,border:`1px solid ${BRAND.border}`,borderRadius:"16px",padding:"18px",display:"flex",alignItems:"center",gap:"14px"}}>
+                    <img src="/queen.jfif" alt="Queen's University" style={{width:"110px",height:"82px",objectFit:"contain",borderRadius:"12px",backgroundColor:"white",border:`1px solid ${BRAND.border}`,padding:"6px"}} />
+                    <div>
+                      <p style={{margin:"0 0 4px",fontSize:"14px",fontWeight:800,color:BRAND.text}}>Queen's University</p>
+                      <p style={{margin:0,fontSize:"12px",color:BRAND.textSec,lineHeight:1.5}}>Neuroscience and BCI research contribution</p>
+                    </div>
+                  </div>
 
-    <div>
-      <p style={{margin:"0 0 12px",fontSize:"12px",fontWeight:700,color:BRAND.textSec,letterSpacing:"1.2px"}}>PLATFORM CAPABILITIES</p>
-      <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-        {["EEG Visualization","FFT Analysis","Spectrogram","Topographic Mapping","AI Insights","BCI Research","Stroke Rehabilitation","Neurorobotics","Signal Processing","Smart Rehabilitation"].map((t: string)=>(
-          <span key={t} style={{backgroundColor:"#EFF6FF",color:BRAND.primary,border:`1px solid ${BRAND.border}`,padding:"6px 12px",borderRadius:"8px",fontSize:"12px",fontWeight:600}}>{t}</span>
-        ))}
-      </div>
-    </div>
+                </div>
+              </div>
 
-  </div>
-)}
+              <div>
+                <p style={{margin:"0 0 12px",fontSize:"12px",fontWeight:700,color:BRAND.textSec,letterSpacing:"1.2px"}}>PLATFORM CAPABILITIES</p>
+                <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
+                  {["EEG Visualization","FFT Analysis","Spectrogram","Topographic Mapping","AI Insights","BCI Research","Stroke Rehabilitation","Neurorobotics","Signal Processing","Smart Rehabilitation"].map((t: string)=>(
+                    <span key={t} style={{backgroundColor:"#EFF6FF",color:BRAND.primary,border:`1px solid ${BRAND.border}`,padding:"6px 12px",borderRadius:"8px",fontSize:"12px",fontWeight:600}}>{t}</span>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          )}
 
         </div>
       </div>
