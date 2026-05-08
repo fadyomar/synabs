@@ -500,7 +500,7 @@ export default function App() {
                 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))",gap:"18px"}}>
 
                   <div style={{backgroundColor:BRAND.card,border:`1px solid ${BRAND.border}`,borderRadius:"18px",padding:"22px",boxShadow:shadow,display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center"}}>
-                    <img src="/fady.jfif" alt="Fady Mostafa" style={{width:"165px",height:"165px",borderRadius:"24px",objectFit:"cover",border:"3px solid #EFF6FF",boxShadow:shadowMd,marginBottom:"16px"}} />
+                    <img src="/fady.png" alt="Fady Mostafa" style={{width:"165px",height:"165px",borderRadius:"24px",objectFit:"cover",border:"3px solid #EFF6FF",boxShadow:shadowMd,marginBottom:"16px"}} />
                     <h3 style={{margin:"0 0 6px",fontSize:"20px",fontWeight:800,color:BRAND.text}}>Fady Mostafa</h3>
                     <p style={{margin:"0 0 10px",fontSize:"13px",fontWeight:600,color:BRAND.primary,lineHeight:1.6}}>M.Sc. in Robotics and Smart Systems</p>
                     <p style={{margin:0,fontSize:"13px",color:BRAND.textSec,lineHeight:1.7}}>Military Technical College, Egypt</p>
@@ -510,7 +510,7 @@ export default function App() {
                   </div>
 
                   <div style={{backgroundColor:BRAND.card,border:`1px solid ${BRAND.border}`,borderRadius:"18px",padding:"22px",boxShadow:shadow,display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center"}}>
-                    <img src="/amr.jpeg" alt="Amr Mostafa" style={{width:"165px",height:"165px",borderRadius:"24px",objectFit:"cover",border:"3px solid #EFF6FF",boxShadow:shadowMd,marginBottom:"16px"}} />
+                    <img src="/amr.png" alt="Amr Mostafa" style={{width:"165px",height:"165px",borderRadius:"24px",objectFit:"cover",border:"3px solid #EFF6FF",boxShadow:shadowMd,marginBottom:"16px"}} />
                     <h3 style={{margin:"0 0 6px",fontSize:"20px",fontWeight:800,color:BRAND.text}}>Amr Mostafa</h3>
                     <p style={{margin:"0 0 10px",fontSize:"13px",fontWeight:600,color:BRAND.primary,lineHeight:1.6}}>PhD Student in Neuroscience</p>
                     <p style={{margin:0,fontSize:"13px",color:BRAND.textSec,lineHeight:1.7}}>Queen's University, Canada</p>
@@ -546,7 +546,7 @@ export default function App() {
                   </div>
 
                   <div style={{backgroundColor:BRAND.bg,border:`1px solid ${BRAND.border}`,borderRadius:"16px",padding:"18px",display:"flex",alignItems:"center",gap:"14px"}}>
-                    <img src="/queen.jfif" alt="Queen's University" style={{width:"110px",height:"82px",objectFit:"contain",borderRadius:"12px",backgroundColor:"white",border:`1px solid ${BRAND.border}`,padding:"6px"}} />
+                    <img src="/queen.png" alt="Queen's University" style={{width:"110px",height:"82px",objectFit:"contain",borderRadius:"12px",backgroundColor:"white",border:`1px solid ${BRAND.border}`,padding:"6px"}} />
                     <div>
                       <p style={{margin:"0 0 4px",fontSize:"14px",fontWeight:800,color:BRAND.text}}>Queen's University</p>
                       <p style={{margin:0,fontSize:"12px",color:BRAND.textSec,lineHeight:1.5}}>Neuroscience and BCI research contribution</p>
