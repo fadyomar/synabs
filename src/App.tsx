@@ -173,8 +173,8 @@ function InfoTab() {
         <p style={{margin:"0 0 14px",fontSize:"12px",fontWeight:700,color:BRAND.textSec,letterSpacing:"1.2px"}}>RESEARCH TEAM</p>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:"18px"}}>
           {[
-            {img:"/fady.jpg",name:"Fady Mostafa",role:"M.Sc. in Robotics and Smart Systems",uni:"Military Technical College, Egypt",tags:"Robotics • Smart Systems • Neurotechnology"},
-            {img:"/amr.jpg",name:"Amr Mostafa",role:"PhD Student in Neuroscience",uni:"Queen's University, Canada",tags:"Neuroscience • EEG • BCI Research"},
+            {img:"/fady.png",name:"Fady Mostafa",role:"M.Sc. in Robotics and Smart Systems",uni:"Military Technical College, Egypt",tags:"Robotics • Smart Systems • Neurotechnology"},
+            {img:"/amr.png",name:"Amr Mostafa",role:"PhD Student in Neuroscience",uni:"Queen's University, Canada",tags:"Neuroscience • EEG • BCI Research"},
           ].map(m=>(
             <div key={m.name} style={{backgroundColor:BRAND.card,border:`1px solid ${BRAND.border}`,borderRadius:"18px",padding:"22px",boxShadow:shadow,display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center"}}>
               <img src={m.img} alt={m.name} style={{width:"140px",height:"140px",borderRadius:"20px",objectFit:"cover",border:"3px solid #EFF6FF",boxShadow:shadowMd,marginBottom:"14px"}} />
