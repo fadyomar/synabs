@@ -40,8 +40,6 @@ const OFFLINE_TABS = [
   { id:"features",   label:"Feature Extraction",   icon:"🔬" },
 ];
 
-// ── LOGO ──────────────────────────────────────────────────────────────
-
 function SynapsLogo({ size = 36 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 120 120" fill="none">
@@ -62,8 +60,6 @@ function SynapsLogo({ size = 36 }: { size?: number }) {
     </svg>
   );
 }
-
-// ── UTILS ─────────────────────────────────────────────────────────────
 
 function computeFFT(signal: number[], sr: number): { freq: number; magnitude: number }[] {
   const N = signal.length, res: { freq: number; magnitude: number }[] = [], step = (sr / 2) / (N / 2);
@@ -114,8 +110,6 @@ function generateInsights(fft: { freq: number; magnitude: number }[], channels: 
   ins.push({ type: "state", label: "Cognitive State", value: state, desc: "Rule-based estimation from spectral band distribution.", color: BRAND.accent, icon: "🧠" });
   return ins;
 }
-
-// ── CANVAS ────────────────────────────────────────────────────────────
 
 function SpectrogramCanvas({ data, sr }: { data: number[][], sr: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -203,8 +197,6 @@ function BandBar({ label, value, max, color }: { label: string, value: number, m
   );
 }
 
-// ── EEG DATA INTERFACE ────────────────────────────────────────────────
-
 interface EEGData {
   fileName: string;
   chartData: Record<string, number>[];
@@ -217,8 +209,6 @@ interface EEGData {
   channelPowers: Record<string, number>;
   bandPowers: Record<string, number>;
 }
-
-// ── RAW DATA TAB ──────────────────────────────────────────────────────
 
 function RawDataTab({ data }: { data: EEGData | null }) {
   const [vizTab, setVizTab] = useState("eeg");
@@ -390,8 +380,6 @@ function RawDataTab({ data }: { data: EEGData | null }) {
   );
 }
 
-// ── PREPROCESSING TAB ─────────────────────────────────────────────────
-
 function PreprocessingTab({ data }: { data: EEGData | null }) {
   const [activeChannels, setActiveChannels] = useState<Record<string, boolean>>({});
   const [bandpassLow, setBandpassLow] = useState<number>(1);
@@ -402,7 +390,6 @@ function PreprocessingTab({ data }: { data: EEGData | null }) {
   const [filteredData, setFilteredData] = useState<EEGData | null>(null);
   const [vizTab, setVizTab] = useState<string>("eeg");
 
-  // Initialize channels when data loads
   useEffect(() => {
     if (data) {
       const init: Record<string, boolean> = {};
@@ -424,16 +411,12 @@ function PreprocessingTab({ data }: { data: EEGData | null }) {
     const selectedChs = data!.channels.filter((ch: string) => activeChannels[ch]);
     if (selectedChs.length === 0) return;
 
-    // Get raw rows (re-extract without offset)
-    const rawRows = data!.chartData.map((row: Record<string, number>, i: number) => {
+    const rawRows = data!.chartData.map((row: Record<string, number>) => {
       const nr: Record<string, number> = { timestamp: row.timestamp };
-      data!.channels.forEach((ch: string, idx: number) => {
-        nr[ch] = row[ch] - idx * 30; // remove offset to get raw
-      });
+      data!.channels.forEach((ch: string, idx: number) => { nr[ch] = row[ch] - idx * 30; });
       return nr;
     });
 
-    // Apply CAR
     const carRows = rawRows.map((row: Record<string, number>) => {
       const nr: Record<string, number> = { timestamp: row.timestamp };
       if (carEnabled) {
@@ -445,29 +428,24 @@ function PreprocessingTab({ data }: { data: EEGData | null }) {
       return nr;
     });
 
-    // Simple bandpass: keep only selected channels + basic smoothing
     const filteredRows = carRows.map((row: Record<string, number>, i: number, arr: Record<string, number>[]) => {
       const nr: Record<string, number> = { timestamp: row.timestamp };
       selectedChs.forEach((ch: string) => {
-        // Simple moving average as basic lowpass
         const prev = arr[i - 1]?.[ch] ?? row[ch];
         const next = arr[i + 1]?.[ch] ?? row[ch];
         nr[ch] = (prev + row[ch] + next) / 3;
-        // Notch: simple attenuation at 50Hz
         if (notchEnabled) { nr[ch] = nr[ch] * 0.95; }
       });
       return nr;
     });
 
-    // Add offset for display
     const OFFSET = 30;
-    const offsetRows = filteredRows.map((row: Record<string, number>, _: number) => {
+    const offsetRows = filteredRows.map((row: Record<string, number>) => {
       const nr: Record<string, number> = { timestamp: row.timestamp };
       selectedChs.forEach((ch: string, i: number) => { nr[ch] = row[ch] + i * OFFSET; });
       return nr;
     });
 
-    // Compute FFT for first selected channel
     const ch1Signal = filteredRows.map((r: Record<string, number>) => r[selectedChs[0]]);
     const fft = computeFFT(ch1Signal, data!.sr);
     const powers: Record<string, number> = {};
@@ -491,7 +469,6 @@ function PreprocessingTab({ data }: { data: EEGData | null }) {
     setProcessed(true);
   }
 
-  const bandColors: Record<string, string> = { Delta: "#8B5CF6", Theta: "#0891B2", Alpha: "#0A84C6", Beta: "#F59E0B", Gamma: "#EF4444" };
   const selectedChs = data.channels.filter((ch: string) => activeChannels[ch]);
 
   const vizTabs = [
@@ -505,134 +482,88 @@ function PreprocessingTab({ data }: { data: EEGData | null }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
 
-      {/* ELECTRODE SELECTION */}
       <div style={{ backgroundColor: BRAND.bg, border: `1px solid ${BRAND.border}`, borderRadius: "14px", padding: "20px" }}>
-        <p style={{ margin: "0 0 14px", fontSize: "13px", fontWeight: 700, color: BRAND.text, letterSpacing: "0.5px" }}>
-          🎛️ ELECTRODE SELECTION
-        </p>
+        <p style={{ margin: "0 0 14px", fontSize: "13px", fontWeight: 700, color: BRAND.text, letterSpacing: "0.5px" }}>🎛️ ELECTRODE SELECTION</p>
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
           {data.channels.map((ch: string) => {
             const isOn = activeChannels[ch] !== false;
             return (
-              <button
-                key={ch}
-                onClick={() => setActiveChannels(prev => ({ ...prev, [ch]: !prev[ch] }))}
-                style={{
-                  display: "flex", alignItems: "center", gap: "8px",
-                  padding: "8px 16px", borderRadius: "8px", cursor: "pointer",
-                  border: `1px solid ${isOn ? BRAND.primary : BRAND.border}`,
-                  backgroundColor: isOn ? "#EFF6FF" : BRAND.card,
-                  color: isOn ? BRAND.primary : BRAND.textSec,
-                  fontSize: "13px", fontWeight: 600, transition: "all 0.15s",
-                }}
-              >
-                <div style={{
-                  width: "10px", height: "10px", borderRadius: "50%",
-                  backgroundColor: isOn ? BRAND.success : "#CBD5E1",
-                  transition: "background 0.15s"
-                }} />
+              <button key={ch} onClick={() => setActiveChannels(prev => ({ ...prev, [ch]: !prev[ch] }))} style={{
+                display: "flex", alignItems: "center", gap: "8px",
+                padding: "8px 16px", borderRadius: "8px", cursor: "pointer",
+                border: `1px solid ${isOn ? BRAND.primary : BRAND.border}`,
+                backgroundColor: isOn ? "#EFF6FF" : BRAND.card,
+                color: isOn ? BRAND.primary : BRAND.textSec,
+                fontSize: "13px", fontWeight: 600, transition: "all 0.15s",
+              }}>
+                <div style={{ width: "10px", height: "10px", borderRadius: "50%", backgroundColor: isOn ? BRAND.success : "#CBD5E1", transition: "background 0.15s" }} />
                 {ch}
                 <span style={{ fontSize: "11px", fontWeight: 500 }}>{isOn ? "ON" : "OFF"}</span>
               </button>
             );
           })}
         </div>
-        <p style={{ margin: "10px 0 0", fontSize: "12px", color: BRAND.textSec }}>
-          {selectedChs.length} of {data.channels.length} channels selected
-        </p>
+        <p style={{ margin: "10px 0 0", fontSize: "12px", color: BRAND.textSec }}>{selectedChs.length} of {data.channels.length} channels selected</p>
       </div>
 
-      {/* FILTERS */}
       <div style={{ backgroundColor: BRAND.bg, border: `1px solid ${BRAND.border}`, borderRadius: "14px", padding: "20px" }}>
-        <p style={{ margin: "0 0 16px", fontSize: "13px", fontWeight: 700, color: BRAND.text, letterSpacing: "0.5px" }}>
-          ⚙️ SIGNAL FILTERS
-        </p>
+        <p style={{ margin: "0 0 16px", fontSize: "13px", fontWeight: 700, color: BRAND.text, letterSpacing: "0.5px" }}>⚙️ SIGNAL FILTERS</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: "16px" }}>
 
-          {/* Bandpass */}
           <div style={{ backgroundColor: BRAND.card, border: `1px solid ${BRAND.border}`, borderRadius: "12px", padding: "16px" }}>
             <p style={{ margin: "0 0 12px", fontSize: "13px", fontWeight: 600, color: BRAND.text }}>🔀 Bandpass Filter</p>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
               <label style={{ fontSize: "12px", color: BRAND.textSec, width: "30px" }}>Low</label>
-              <input
-                type="number" value={bandpassLow} min={0.1} max={49}
+              <input type="number" value={bandpassLow} min={0.1} max={49}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBandpassLow(parseFloat(e.target.value))}
-                style={{ width: "70px", padding: "4px 8px", borderRadius: "6px", border: `1px solid ${BRAND.border}`, fontSize: "12px", color: BRAND.text }}
-              />
+                style={{ width: "70px", padding: "4px 8px", borderRadius: "6px", border: `1px solid ${BRAND.border}`, fontSize: "12px", color: BRAND.text }} />
               <span style={{ fontSize: "12px", color: BRAND.textSec }}>Hz</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <label style={{ fontSize: "12px", color: BRAND.textSec, width: "30px" }}>High</label>
-              <input
-                type="number" value={bandpassHigh} min={1} max={50}
+              <input type="number" value={bandpassHigh} min={1} max={50}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBandpassHigh(parseFloat(e.target.value))}
-                style={{ width: "70px", padding: "4px 8px", borderRadius: "6px", border: `1px solid ${BRAND.border}`, fontSize: "12px", color: BRAND.text }}
-              />
+                style={{ width: "70px", padding: "4px 8px", borderRadius: "6px", border: `1px solid ${BRAND.border}`, fontSize: "12px", color: BRAND.text }} />
               <span style={{ fontSize: "12px", color: BRAND.textSec }}>Hz</span>
             </div>
             <p style={{ margin: "8px 0 0", fontSize: "11px", color: BRAND.textSec }}>Range: {bandpassLow}–{bandpassHigh} Hz</p>
           </div>
 
-          {/* Notch */}
           <div style={{ backgroundColor: BRAND.card, border: `1px solid ${notchEnabled ? BRAND.primary : BRAND.border}`, borderRadius: "12px", padding: "16px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
               <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: BRAND.text }}>🔇 Notch Filter</p>
-              <button onClick={() => setNotchEnabled(!notchEnabled)} style={{
-                width: "40px", height: "22px", borderRadius: "99px", border: "none", cursor: "pointer",
-                backgroundColor: notchEnabled ? BRAND.primary : "#CBD5E1", position: "relative", transition: "all 0.2s"
-              }}>
-                <div style={{
-                  width: "16px", height: "16px", borderRadius: "50%", backgroundColor: "white",
-                  position: "absolute", top: "3px", left: notchEnabled ? "21px" : "3px", transition: "all 0.2s"
-                }} />
+              <button onClick={() => setNotchEnabled(!notchEnabled)} style={{ width: "40px", height: "22px", borderRadius: "99px", border: "none", cursor: "pointer", backgroundColor: notchEnabled ? BRAND.primary : "#CBD5E1", position: "relative", transition: "all 0.2s" }}>
+                <div style={{ width: "16px", height: "16px", borderRadius: "50%", backgroundColor: "white", position: "absolute", top: "3px", left: notchEnabled ? "21px" : "3px", transition: "all 0.2s" }} />
               </button>
             </div>
             <p style={{ margin: 0, fontSize: "12px", color: BRAND.textSec }}>Remove 50 Hz power line noise</p>
-            <p style={{ margin: "6px 0 0", fontSize: "11px", color: notchEnabled ? BRAND.success : BRAND.textSec, fontWeight: 600 }}>
-              {notchEnabled ? "✓ Enabled" : "Disabled"}
-            </p>
+            <p style={{ margin: "6px 0 0", fontSize: "11px", color: notchEnabled ? BRAND.success : BRAND.textSec, fontWeight: 600 }}>{notchEnabled ? "✓ Enabled" : "Disabled"}</p>
           </div>
 
-          {/* CAR */}
           <div style={{ backgroundColor: BRAND.card, border: `1px solid ${carEnabled ? BRAND.primary : BRAND.border}`, borderRadius: "12px", padding: "16px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
               <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: BRAND.text }}>📐 CAR</p>
-              <button onClick={() => setCarEnabled(!carEnabled)} style={{
-                width: "40px", height: "22px", borderRadius: "99px", border: "none", cursor: "pointer",
-                backgroundColor: carEnabled ? BRAND.primary : "#CBD5E1", position: "relative", transition: "all 0.2s"
-              }}>
-                <div style={{
-                  width: "16px", height: "16px", borderRadius: "50%", backgroundColor: "white",
-                  position: "absolute", top: "3px", left: carEnabled ? "21px" : "3px", transition: "all 0.2s"
-                }} />
+              <button onClick={() => setCarEnabled(!carEnabled)} style={{ width: "40px", height: "22px", borderRadius: "99px", border: "none", cursor: "pointer", backgroundColor: carEnabled ? BRAND.primary : "#CBD5E1", position: "relative", transition: "all 0.2s" }}>
+                <div style={{ width: "16px", height: "16px", borderRadius: "50%", backgroundColor: "white", position: "absolute", top: "3px", left: carEnabled ? "21px" : "3px", transition: "all 0.2s" }} />
               </button>
             </div>
             <p style={{ margin: 0, fontSize: "12px", color: BRAND.textSec }}>Common Average Reference</p>
-            <p style={{ margin: "6px 0 0", fontSize: "11px", color: carEnabled ? BRAND.success : BRAND.textSec, fontWeight: 600 }}>
-              {carEnabled ? "✓ Enabled" : "Disabled"}
-            </p>
+            <p style={{ margin: "6px 0 0", fontSize: "11px", color: carEnabled ? BRAND.success : BRAND.textSec, fontWeight: 600 }}>{carEnabled ? "✓ Enabled" : "Disabled"}</p>
           </div>
 
         </div>
       </div>
 
-      {/* APPLY BUTTON */}
-      <button
-        onClick={applyFilters}
-        disabled={selectedChs.length === 0}
-        style={{
-          alignSelf: "flex-start", display: "flex", alignItems: "center", gap: "8px",
-          backgroundColor: selectedChs.length === 0 ? "#CBD5E1" : BRAND.primary,
-          color: "white", border: "none", padding: "12px 28px", borderRadius: "10px",
-          fontSize: "14px", fontWeight: 700, cursor: selectedChs.length === 0 ? "not-allowed" : "pointer",
-          boxShadow: selectedChs.length === 0 ? "none" : `0 4px 12px ${BRAND.primary}44`,
-          transition: "all 0.2s"
-        }}
-      >
+      <button onClick={applyFilters} disabled={selectedChs.length === 0} style={{
+        alignSelf: "flex-start", display: "flex", alignItems: "center", gap: "8px",
+        backgroundColor: selectedChs.length === 0 ? "#CBD5E1" : BRAND.primary,
+        color: "white", border: "none", padding: "12px 28px", borderRadius: "10px",
+        fontSize: "14px", fontWeight: 700, cursor: selectedChs.length === 0 ? "not-allowed" : "pointer",
+        boxShadow: selectedChs.length === 0 ? "none" : `0 4px 12px ${BRAND.primary}44`, transition: "all 0.2s"
+      }}>
         ⚡ Apply Preprocessing
       </button>
 
-      {/* RESULTS */}
       {processed && filteredData && (
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
 
@@ -641,24 +572,16 @@ function PreprocessingTab({ data }: { data: EEGData | null }) {
             <div>
               <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#166534" }}>Preprocessing Applied Successfully</p>
               <p style={{ margin: 0, fontSize: "12px", color: "#166534" }}>
-                {filteredData.channels.length} channels · Bandpass {bandpassLow}–{bandpassHigh} Hz
-                {notchEnabled ? " · Notch 50Hz" : ""}
-                {carEnabled ? " · CAR" : ""}
+                {filteredData.channels.length} channels · Bandpass {bandpassLow}–{bandpassHigh} Hz{notchEnabled ? " · Notch 50Hz" : ""}{carEnabled ? " · CAR" : ""}
               </p>
             </div>
           </div>
 
-          {/* Before vs After label */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-            <div style={{ backgroundColor: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: "8px", padding: "8px 14px", textAlign: "center", fontSize: "12px", fontWeight: 600, color: "#92400E" }}>
-              📊 Before — Raw Signal
-            </div>
-            <div style={{ backgroundColor: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: "8px", padding: "8px 14px", textAlign: "center", fontSize: "12px", fontWeight: 600, color: "#166534" }}>
-              ✅ After — Filtered Signal
-            </div>
+            <div style={{ backgroundColor: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: "8px", padding: "8px 14px", textAlign: "center", fontSize: "12px", fontWeight: 600, color: "#92400E" }}>📊 Before — Raw Signal</div>
+            <div style={{ backgroundColor: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: "8px", padding: "8px 14px", textAlign: "center", fontSize: "12px", fontWeight: 600, color: "#166534" }}>✅ After — Filtered Signal</div>
           </div>
 
-          {/* Viz Tabs */}
           <div style={{ display: "flex", gap: "4px", borderBottom: `1px solid ${BRAND.border}` }}>
             {vizTabs.map(t => (
               <button key={t.id} onClick={() => setVizTab(t.id)} style={{
@@ -671,7 +594,6 @@ function PreprocessingTab({ data }: { data: EEGData | null }) {
             ))}
           </div>
 
-          {/* Before vs After — Time Domain */}
           {vizTab === "eeg" && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
               <div>
@@ -701,7 +623,6 @@ function PreprocessingTab({ data }: { data: EEGData | null }) {
             </div>
           )}
 
-          {/* Before vs After — FFT */}
           {vizTab === "fft" && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
               <div>
@@ -733,7 +654,6 @@ function PreprocessingTab({ data }: { data: EEGData | null }) {
             </div>
           )}
 
-          {/* Before vs After — Spectrogram */}
           {vizTab === "spectro" && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
               <div>
@@ -747,7 +667,6 @@ function PreprocessingTab({ data }: { data: EEGData | null }) {
             </div>
           )}
 
-          {/* Before vs After — Topomap */}
           {vizTab === "topo" && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
               <div>
@@ -761,7 +680,6 @@ function PreprocessingTab({ data }: { data: EEGData | null }) {
             </div>
           )}
 
-          {/* Before vs After — Insights */}
           {vizTab === "insights" && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
               <div>
@@ -794,7 +712,6 @@ function PreprocessingTab({ data }: { data: EEGData | null }) {
     </div>
   );
 }
-// ── FEATURE EXTRACTION TAB ────────────────────────────────────────────
 
 function FeatureExtractionTab({ data }: { data: EEGData | null }) {
   if (!data) return (
@@ -831,8 +748,6 @@ function FeatureExtractionTab({ data }: { data: EEGData | null }) {
     </div>
   );
 }
-
-// ── OFFLINE TAB ───────────────────────────────────────────────────────
 
 function OfflineTab() {
   const [offlineTab, setOfflineTab] = useState("raw");
@@ -883,7 +798,6 @@ function OfflineTab() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-
       <div
         onDragOver={(e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
@@ -904,8 +818,7 @@ function OfflineTab() {
             display: "flex", alignItems: "center", gap: "6px",
             padding: "10px 18px", border: "none",
             borderBottom: offlineTab === t.id ? `2px solid ${BRAND.primary}` : "2px solid transparent",
-            backgroundColor: "transparent",
-            color: offlineTab === t.id ? BRAND.primary : BRAND.textSec,
+            backgroundColor: "transparent", color: offlineTab === t.id ? BRAND.primary : BRAND.textSec,
             cursor: "pointer", fontFamily: "Inter,sans-serif", fontSize: "13px",
             fontWeight: offlineTab === t.id ? 600 : 500, whiteSpace: "nowrap", transition: "all 0.15s",
           }}>
@@ -917,12 +830,9 @@ function OfflineTab() {
       {offlineTab === "raw" && <RawDataTab data={eegData} />}
       {offlineTab === "preprocess" && <PreprocessingTab data={eegData} />}
       {offlineTab === "features" && <FeatureExtractionTab data={eegData} />}
-
     </div>
   );
 }
-
-// ── OTHER TABS ────────────────────────────────────────────────────────
 
 function ConverterTab() {
   return (
@@ -1047,14 +957,11 @@ function InfoTab() {
   );
 }
 
-// ── MAIN APP ──────────────────────────────────────────────────────────
-
 export default function App() {
   const [mainTab, setMainTab] = useState<string>("offline");
 
   return (
     <div style={{ backgroundColor: BRAND.bg, minHeight: "100vh", fontFamily: "Inter,-apple-system,sans-serif", color: BRAND.text }}>
-
       <div style={{ position: "sticky", top: 0, zIndex: 100, backgroundColor: "rgba(255,255,255,0.92)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${BRAND.border}`, boxShadow: "0 1px 2px rgba(15,23,42,0.04)" }}>
         <div style={{ maxWidth: "1280px", margin: "0 auto", padding: "0 32px", height: "64px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -1108,7 +1015,6 @@ export default function App() {
           {mainTab === "info" && <InfoTab />}
         </div>
       </div>
-
     </div>
   );
 }
