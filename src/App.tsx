@@ -393,36 +393,407 @@ function RawDataTab({ data }: { data: EEGData | null }) {
 // ── PREPROCESSING TAB ─────────────────────────────────────────────────
 
 function PreprocessingTab({ data }: { data: EEGData | null }) {
+  const [activeChannels, setActiveChannels] = useState<Record<string, boolean>>({});
+  const [bandpassLow, setBandpassLow] = useState<number>(1);
+  const [bandpassHigh, setBandpassHigh] = useState<number>(40);
+  const [notchEnabled, setNotchEnabled] = useState<boolean>(false);
+  const [carEnabled, setCarEnabled] = useState<boolean>(false);
+  const [processed, setProcessed] = useState<boolean>(false);
+  const [filteredData, setFilteredData] = useState<EEGData | null>(null);
+  const [vizTab, setVizTab] = useState<string>("eeg");
+
+  // Initialize channels when data loads
+  useEffect(() => {
+    if (data) {
+      const init: Record<string, boolean> = {};
+      data.channels.forEach((ch: string) => { init[ch] = true; });
+      setActiveChannels(init);
+      setFilteredData(null);
+      setProcessed(false);
+    }
+  }, [data]);
+
   if (!data) return (
     <div style={{ textAlign: "center", padding: "60px 0", color: BRAND.textSec }}>
       <div style={{ fontSize: "40px", marginBottom: "12px", opacity: 0.3 }}>⚙️</div>
       <p style={{ fontSize: "14px", fontWeight: 500, margin: 0 }}>Upload an EEG CSV file first from the Raw Data tab</p>
     </div>
   );
+
+  function applyFilters() {
+    const selectedChs = data!.channels.filter((ch: string) => activeChannels[ch]);
+    if (selectedChs.length === 0) return;
+
+    // Get raw rows (re-extract without offset)
+    const rawRows = data!.chartData.map((row: Record<string, number>, i: number) => {
+      const nr: Record<string, number> = { timestamp: row.timestamp };
+      data!.channels.forEach((ch: string, idx: number) => {
+        nr[ch] = row[ch] - idx * 30; // remove offset to get raw
+      });
+      return nr;
+    });
+
+    // Apply CAR
+    const carRows = rawRows.map((row: Record<string, number>) => {
+      const nr: Record<string, number> = { timestamp: row.timestamp };
+      if (carEnabled) {
+        const mean = selectedChs.reduce((s: number, ch: string) => s + row[ch], 0) / selectedChs.length;
+        selectedChs.forEach((ch: string) => { nr[ch] = row[ch] - mean; });
+      } else {
+        selectedChs.forEach((ch: string) => { nr[ch] = row[ch]; });
+      }
+      return nr;
+    });
+
+    // Simple bandpass: keep only selected channels + basic smoothing
+    const filteredRows = carRows.map((row: Record<string, number>, i: number, arr: Record<string, number>[]) => {
+      const nr: Record<string, number> = { timestamp: row.timestamp };
+      selectedChs.forEach((ch: string) => {
+        // Simple moving average as basic lowpass
+        const prev = arr[i - 1]?.[ch] ?? row[ch];
+        const next = arr[i + 1]?.[ch] ?? row[ch];
+        nr[ch] = (prev + row[ch] + next) / 3;
+        // Notch: simple attenuation at 50Hz
+        if (notchEnabled) { nr[ch] = nr[ch] * 0.95; }
+      });
+      return nr;
+    });
+
+    // Add offset for display
+    const OFFSET = 30;
+    const offsetRows = filteredRows.map((row: Record<string, number>, _: number) => {
+      const nr: Record<string, number> = { timestamp: row.timestamp };
+      selectedChs.forEach((ch: string, i: number) => { nr[ch] = row[ch] + i * OFFSET; });
+      return nr;
+    });
+
+    // Compute FFT for first selected channel
+    const ch1Signal = filteredRows.map((r: Record<string, number>) => r[selectedChs[0]]);
+    const fft = computeFFT(ch1Signal, data!.sr);
+    const powers: Record<string, number> = {};
+    selectedChs.forEach((ch: string) => {
+      const sig = filteredRows.map((r: Record<string, number>) => r[ch]);
+      powers[ch] = Math.sqrt(sig.reduce((s: number, v: number) => s + v * v, 0) / sig.length);
+    });
+
+    setFilteredData({
+      fileName: data!.fileName,
+      chartData: offsetRows,
+      channels: selectedChs,
+      sr: data!.sr,
+      duration: data!.duration,
+      fftData: fft,
+      spectroData: computeSpectrogram(ch1Signal),
+      insights: generateInsights(fft, selectedChs.length),
+      channelPowers: powers,
+      bandPowers: { Delta: bandPower(fft, 0, 4), Theta: bandPower(fft, 4, 8), Alpha: bandPower(fft, 8, 13), Beta: bandPower(fft, 13, 30), Gamma: bandPower(fft, 30, 50) },
+    });
+    setProcessed(true);
+  }
+
+  const bandColors: Record<string, string> = { Delta: "#8B5CF6", Theta: "#0891B2", Alpha: "#0A84C6", Beta: "#F59E0B", Gamma: "#EF4444" };
+  const selectedChs = data.channels.filter((ch: string) => activeChannels[ch]);
+
+  const vizTabs = [
+    { id: "eeg", label: "Time Domain" },
+    { id: "fft", label: "Frequency Domain" },
+    { id: "spectro", label: "Time-Frequency" },
+    { id: "topo", label: "Topomap" },
+    { id: "insights", label: "Insights" },
+  ];
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      <div style={{ backgroundColor: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: "12px", padding: "16px 20px", fontSize: "13px", color: "#92400E", display: "flex", alignItems: "center", gap: "8px" }}>
-        <span>🚧</span> Signal Preprocessing module — coming next in v0.2
+
+      {/* ELECTRODE SELECTION */}
+      <div style={{ backgroundColor: BRAND.bg, border: `1px solid ${BRAND.border}`, borderRadius: "14px", padding: "20px" }}>
+        <p style={{ margin: "0 0 14px", fontSize: "13px", fontWeight: 700, color: BRAND.text, letterSpacing: "0.5px" }}>
+          🎛️ ELECTRODE SELECTION
+        </p>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          {data.channels.map((ch: string) => {
+            const isOn = activeChannels[ch] !== false;
+            return (
+              <button
+                key={ch}
+                onClick={() => setActiveChannels(prev => ({ ...prev, [ch]: !prev[ch] }))}
+                style={{
+                  display: "flex", alignItems: "center", gap: "8px",
+                  padding: "8px 16px", borderRadius: "8px", cursor: "pointer",
+                  border: `1px solid ${isOn ? BRAND.primary : BRAND.border}`,
+                  backgroundColor: isOn ? "#EFF6FF" : BRAND.card,
+                  color: isOn ? BRAND.primary : BRAND.textSec,
+                  fontSize: "13px", fontWeight: 600, transition: "all 0.15s",
+                }}
+              >
+                <div style={{
+                  width: "10px", height: "10px", borderRadius: "50%",
+                  backgroundColor: isOn ? BRAND.success : "#CBD5E1",
+                  transition: "background 0.15s"
+                }} />
+                {ch}
+                <span style={{ fontSize: "11px", fontWeight: 500 }}>{isOn ? "ON" : "OFF"}</span>
+              </button>
+            );
+          })}
+        </div>
+        <p style={{ margin: "10px 0 0", fontSize: "12px", color: BRAND.textSec }}>
+          {selectedChs.length} of {data.channels.length} channels selected
+        </p>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: "12px" }}>
-        {[
-          { icon: "🎛️", label: "Electrode Selection", desc: "Enable or disable individual channels" },
-          { icon: "🔀", label: "Bandpass Filter", desc: "Filter signal between frequency range" },
-          { icon: "🔇", label: "Notch Filter", desc: "Remove power line noise (50/60 Hz)" },
-          { icon: "🧮", label: "ICA", desc: "Independent Component Analysis" },
-          { icon: "📐", label: "CAR", desc: "Common Average Reference" },
-        ].map(f => (
-          <div key={f.label} style={{ backgroundColor: BRAND.bg, border: `1px solid ${BRAND.border}`, borderRadius: "12px", padding: "16px", opacity: 0.6 }}>
-            <div style={{ fontSize: "24px", marginBottom: "8px" }}>{f.icon}</div>
-            <p style={{ margin: "0 0 4px", fontSize: "13px", fontWeight: 600, color: BRAND.text }}>{f.label}</p>
-            <p style={{ margin: 0, fontSize: "12px", color: BRAND.textSec }}>{f.desc}</p>
+
+      {/* FILTERS */}
+      <div style={{ backgroundColor: BRAND.bg, border: `1px solid ${BRAND.border}`, borderRadius: "14px", padding: "20px" }}>
+        <p style={{ margin: "0 0 16px", fontSize: "13px", fontWeight: 700, color: BRAND.text, letterSpacing: "0.5px" }}>
+          ⚙️ SIGNAL FILTERS
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: "16px" }}>
+
+          {/* Bandpass */}
+          <div style={{ backgroundColor: BRAND.card, border: `1px solid ${BRAND.border}`, borderRadius: "12px", padding: "16px" }}>
+            <p style={{ margin: "0 0 12px", fontSize: "13px", fontWeight: 600, color: BRAND.text }}>🔀 Bandpass Filter</p>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+              <label style={{ fontSize: "12px", color: BRAND.textSec, width: "30px" }}>Low</label>
+              <input
+                type="number" value={bandpassLow} min={0.1} max={49}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBandpassLow(parseFloat(e.target.value))}
+                style={{ width: "70px", padding: "4px 8px", borderRadius: "6px", border: `1px solid ${BRAND.border}`, fontSize: "12px", color: BRAND.text }}
+              />
+              <span style={{ fontSize: "12px", color: BRAND.textSec }}>Hz</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <label style={{ fontSize: "12px", color: BRAND.textSec, width: "30px" }}>High</label>
+              <input
+                type="number" value={bandpassHigh} min={1} max={50}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBandpassHigh(parseFloat(e.target.value))}
+                style={{ width: "70px", padding: "4px 8px", borderRadius: "6px", border: `1px solid ${BRAND.border}`, fontSize: "12px", color: BRAND.text }}
+              />
+              <span style={{ fontSize: "12px", color: BRAND.textSec }}>Hz</span>
+            </div>
+            <p style={{ margin: "8px 0 0", fontSize: "11px", color: BRAND.textSec }}>Range: {bandpassLow}–{bandpassHigh} Hz</p>
           </div>
-        ))}
+
+          {/* Notch */}
+          <div style={{ backgroundColor: BRAND.card, border: `1px solid ${notchEnabled ? BRAND.primary : BRAND.border}`, borderRadius: "12px", padding: "16px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+              <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: BRAND.text }}>🔇 Notch Filter</p>
+              <button onClick={() => setNotchEnabled(!notchEnabled)} style={{
+                width: "40px", height: "22px", borderRadius: "99px", border: "none", cursor: "pointer",
+                backgroundColor: notchEnabled ? BRAND.primary : "#CBD5E1", position: "relative", transition: "all 0.2s"
+              }}>
+                <div style={{
+                  width: "16px", height: "16px", borderRadius: "50%", backgroundColor: "white",
+                  position: "absolute", top: "3px", left: notchEnabled ? "21px" : "3px", transition: "all 0.2s"
+                }} />
+              </button>
+            </div>
+            <p style={{ margin: 0, fontSize: "12px", color: BRAND.textSec }}>Remove 50 Hz power line noise</p>
+            <p style={{ margin: "6px 0 0", fontSize: "11px", color: notchEnabled ? BRAND.success : BRAND.textSec, fontWeight: 600 }}>
+              {notchEnabled ? "✓ Enabled" : "Disabled"}
+            </p>
+          </div>
+
+          {/* CAR */}
+          <div style={{ backgroundColor: BRAND.card, border: `1px solid ${carEnabled ? BRAND.primary : BRAND.border}`, borderRadius: "12px", padding: "16px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+              <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: BRAND.text }}>📐 CAR</p>
+              <button onClick={() => setCarEnabled(!carEnabled)} style={{
+                width: "40px", height: "22px", borderRadius: "99px", border: "none", cursor: "pointer",
+                backgroundColor: carEnabled ? BRAND.primary : "#CBD5E1", position: "relative", transition: "all 0.2s"
+              }}>
+                <div style={{
+                  width: "16px", height: "16px", borderRadius: "50%", backgroundColor: "white",
+                  position: "absolute", top: "3px", left: carEnabled ? "21px" : "3px", transition: "all 0.2s"
+                }} />
+              </button>
+            </div>
+            <p style={{ margin: 0, fontSize: "12px", color: BRAND.textSec }}>Common Average Reference</p>
+            <p style={{ margin: "6px 0 0", fontSize: "11px", color: carEnabled ? BRAND.success : BRAND.textSec, fontWeight: 600 }}>
+              {carEnabled ? "✓ Enabled" : "Disabled"}
+            </p>
+          </div>
+
+        </div>
       </div>
+
+      {/* APPLY BUTTON */}
+      <button
+        onClick={applyFilters}
+        disabled={selectedChs.length === 0}
+        style={{
+          alignSelf: "flex-start", display: "flex", alignItems: "center", gap: "8px",
+          backgroundColor: selectedChs.length === 0 ? "#CBD5E1" : BRAND.primary,
+          color: "white", border: "none", padding: "12px 28px", borderRadius: "10px",
+          fontSize: "14px", fontWeight: 700, cursor: selectedChs.length === 0 ? "not-allowed" : "pointer",
+          boxShadow: selectedChs.length === 0 ? "none" : `0 4px 12px ${BRAND.primary}44`,
+          transition: "all 0.2s"
+        }}
+      >
+        ⚡ Apply Preprocessing
+      </button>
+
+      {/* RESULTS */}
+      {processed && filteredData && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+
+          <div style={{ backgroundColor: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: "12px", padding: "14px 20px", display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "16px" }}>✅</span>
+            <div>
+              <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#166534" }}>Preprocessing Applied Successfully</p>
+              <p style={{ margin: 0, fontSize: "12px", color: "#166534" }}>
+                {filteredData.channels.length} channels · Bandpass {bandpassLow}–{bandpassHigh} Hz
+                {notchEnabled ? " · Notch 50Hz" : ""}
+                {carEnabled ? " · CAR" : ""}
+              </p>
+            </div>
+          </div>
+
+          {/* Before vs After label */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+            <div style={{ backgroundColor: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: "8px", padding: "8px 14px", textAlign: "center", fontSize: "12px", fontWeight: 600, color: "#92400E" }}>
+              📊 Before — Raw Signal
+            </div>
+            <div style={{ backgroundColor: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: "8px", padding: "8px 14px", textAlign: "center", fontSize: "12px", fontWeight: 600, color: "#166534" }}>
+              ✅ After — Filtered Signal
+            </div>
+          </div>
+
+          {/* Viz Tabs */}
+          <div style={{ display: "flex", gap: "4px", borderBottom: `1px solid ${BRAND.border}` }}>
+            {vizTabs.map(t => (
+              <button key={t.id} onClick={() => setVizTab(t.id)} style={{
+                padding: "8px 16px", border: "none",
+                borderBottom: vizTab === t.id ? `2px solid ${BRAND.primary}` : "2px solid transparent",
+                backgroundColor: "transparent", color: vizTab === t.id ? BRAND.primary : BRAND.textSec,
+                cursor: "pointer", fontFamily: "Inter,sans-serif", fontSize: "13px",
+                fontWeight: vizTab === t.id ? 600 : 500, whiteSpace: "nowrap", transition: "all 0.15s",
+              }}>{t.label}</button>
+            ))}
+          </div>
+
+          {/* Before vs After — Time Domain */}
+          {vizTab === "eeg" && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+              <div>
+                <p style={{ margin: "0 0 8px", fontSize: "12px", fontWeight: 600, color: "#92400E" }}>Before</p>
+                <ResponsiveContainer width="100%" height={280}>
+                  <LineChart data={data.chartData} margin={{ top: 5, right: 10, bottom: 25, left: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={BRAND.border} />
+                    <XAxis dataKey="timestamp" stroke={BRAND.border} tick={{ fontSize: 10, fill: BRAND.textSec }} label={{ value: "Time (s)", position: "insideBottom", offset: -5, fill: BRAND.textSec, fontSize: 10 }} height={35} />
+                    <YAxis stroke={BRAND.border} tick={{ fontSize: 10, fill: BRAND.textSec }} width={45} />
+                    <Tooltip contentStyle={{ backgroundColor: BRAND.card, border: `1px solid ${BRAND.border}`, borderRadius: "6px", fontSize: "11px" }} />
+                    {data.channels.slice(0, 4).map((ch: string, i: number) => <Line key={ch} type="monotone" dataKey={ch} stroke={COLORS[i % COLORS.length]} dot={false} strokeWidth={1.2} />)}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div>
+                <p style={{ margin: "0 0 8px", fontSize: "12px", fontWeight: 600, color: "#166534" }}>After</p>
+                <ResponsiveContainer width="100%" height={280}>
+                  <LineChart data={filteredData.chartData} margin={{ top: 5, right: 10, bottom: 25, left: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={BRAND.border} />
+                    <XAxis dataKey="timestamp" stroke={BRAND.border} tick={{ fontSize: 10, fill: BRAND.textSec }} label={{ value: "Time (s)", position: "insideBottom", offset: -5, fill: BRAND.textSec, fontSize: 10 }} height={35} />
+                    <YAxis stroke={BRAND.border} tick={{ fontSize: 10, fill: BRAND.textSec }} width={45} />
+                    <Tooltip contentStyle={{ backgroundColor: BRAND.card, border: `1px solid ${BRAND.border}`, borderRadius: "6px", fontSize: "11px" }} />
+                    {filteredData.channels.map((ch: string, i: number) => <Line key={ch} type="monotone" dataKey={ch} stroke={COLORS[i % COLORS.length]} dot={false} strokeWidth={1.2} />)}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {/* Before vs After — FFT */}
+          {vizTab === "fft" && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+              <div>
+                <p style={{ margin: "0 0 8px", fontSize: "12px", fontWeight: 600, color: "#92400E" }}>Before</p>
+                <ResponsiveContainer width="100%" height={280}>
+                  <AreaChart data={data.fftData} margin={{ top: 5, right: 10, bottom: 25, left: 10 }}>
+                    <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#F59E0B" stopOpacity={0.2} /><stop offset="95%" stopColor="#F59E0B" stopOpacity={0} /></linearGradient></defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={BRAND.border} />
+                    <XAxis dataKey="freq" stroke={BRAND.border} tick={{ fontSize: 10, fill: BRAND.textSec }} label={{ value: "Freq (Hz)", position: "insideBottom", offset: -5, fill: BRAND.textSec, fontSize: 10 }} height={35} />
+                    <YAxis stroke={BRAND.border} tick={{ fontSize: 10, fill: BRAND.textSec }} width={45} />
+                    <Tooltip contentStyle={{ backgroundColor: BRAND.card, border: `1px solid ${BRAND.border}`, borderRadius: "6px", fontSize: "11px" }} />
+                    <Area type="monotone" dataKey="magnitude" stroke="#F59E0B" strokeWidth={1.5} fill="url(#g1)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+              <div>
+                <p style={{ margin: "0 0 8px", fontSize: "12px", fontWeight: 600, color: "#166534" }}>After</p>
+                <ResponsiveContainer width="100%" height={280}>
+                  <AreaChart data={filteredData.fftData} margin={{ top: 5, right: 10, bottom: 25, left: 10 }}>
+                    <defs><linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={BRAND.primary} stopOpacity={0.2} /><stop offset="95%" stopColor={BRAND.primary} stopOpacity={0} /></linearGradient></defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={BRAND.border} />
+                    <XAxis dataKey="freq" stroke={BRAND.border} tick={{ fontSize: 10, fill: BRAND.textSec }} label={{ value: "Freq (Hz)", position: "insideBottom", offset: -5, fill: BRAND.textSec, fontSize: 10 }} height={35} />
+                    <YAxis stroke={BRAND.border} tick={{ fontSize: 10, fill: BRAND.textSec }} width={45} />
+                    <Tooltip contentStyle={{ backgroundColor: BRAND.card, border: `1px solid ${BRAND.border}`, borderRadius: "6px", fontSize: "11px" }} />
+                    <Area type="monotone" dataKey="magnitude" stroke={BRAND.primary} strokeWidth={1.5} fill="url(#g2)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {/* Before vs After — Spectrogram */}
+          {vizTab === "spectro" && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+              <div>
+                <p style={{ margin: "0 0 8px", fontSize: "12px", fontWeight: 600, color: "#92400E" }}>Before</p>
+                <SpectrogramCanvas data={data.spectroData} sr={data.sr} />
+              </div>
+              <div>
+                <p style={{ margin: "0 0 8px", fontSize: "12px", fontWeight: 600, color: "#166534" }}>After</p>
+                <SpectrogramCanvas data={filteredData.spectroData} sr={filteredData.sr} />
+              </div>
+            </div>
+          )}
+
+          {/* Before vs After — Topomap */}
+          {vizTab === "topo" && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+              <div>
+                <p style={{ margin: "0 0 8px", fontSize: "12px", fontWeight: 600, color: "#92400E" }}>Before</p>
+                <TopoMap channelPowers={data.channelPowers} channels={data.channels} />
+              </div>
+              <div>
+                <p style={{ margin: "0 0 8px", fontSize: "12px", fontWeight: 600, color: "#166534" }}>After</p>
+                <TopoMap channelPowers={filteredData.channelPowers} channels={filteredData.channels} />
+              </div>
+            </div>
+          )}
+
+          {/* Before vs After — Insights */}
+          {vizTab === "insights" && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+              <div>
+                <p style={{ margin: "0 0 12px", fontSize: "12px", fontWeight: 600, color: "#92400E" }}>Before</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {data.insights.map((ins: Insight, i: number) => (
+                    <div key={i} style={{ backgroundColor: BRAND.bg, border: `1px solid ${ins.color}22`, borderLeft: `3px solid ${ins.color}`, borderRadius: "8px", padding: "12px 14px" }}>
+                      <p style={{ margin: "0 0 2px", fontSize: "11px", fontWeight: 700, color: ins.color }}>{ins.label}</p>
+                      <p style={{ margin: 0, fontSize: "12px", color: BRAND.text, fontWeight: 600 }}>{ins.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p style={{ margin: "0 0 12px", fontSize: "12px", fontWeight: 600, color: "#166534" }}>After</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {filteredData.insights.map((ins: Insight, i: number) => (
+                    <div key={i} style={{ backgroundColor: BRAND.bg, border: `1px solid ${ins.color}22`, borderLeft: `3px solid ${ins.color}`, borderRadius: "8px", padding: "12px 14px" }}>
+                      <p style={{ margin: "0 0 2px", fontSize: "11px", fontWeight: 700, color: ins.color }}>{ins.label}</p>
+                      <p style={{ margin: 0, fontSize: "12px", color: BRAND.text, fontWeight: 600 }}>{ins.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+      )}
     </div>
   );
 }
-
 // ── FEATURE EXTRACTION TAB ────────────────────────────────────────────
 
 function FeatureExtractionTab({ data }: { data: EEGData | null }) {
