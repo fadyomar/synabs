@@ -17,6 +17,7 @@ const BRAND = {
 const shadow = "0 1px 3px rgba(15,23,42,0.08), 0 1px 2px rgba(15,23,42,0.04)";
 const shadowMd = "0 4px 12px rgba(15,23,42,0.08), 0 2px 4px rgba(15,23,42,0.04)";
 const COLORS = ["#0A84C6","#2563EB","#16A34A","#F59E0B","#8B5CF6","#EF4444","#0891B2","#D97706"];
+const BACKEND_URL = "https://synaps-backend-production.up.railway.app";
 
 const ELECTRODE_POSITIONS: Record<string, { x: number; y: number }> = {
   CH1:{x:0.35,y:0.25},CH2:{x:0.65,y:0.25},
@@ -387,6 +388,7 @@ function PreprocessingTab({ data }: { data: EEGData | null }) {
   const [notchEnabled, setNotchEnabled] = useState<boolean>(false);
   const [carEnabled, setCarEnabled] = useState<boolean>(false);
   const [processed, setProcessed] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const [filteredData, setFilteredData] = useState<EEGData | null>(null);
   const [vizTab, setVizTab] = useState<string>("eeg");
 
@@ -407,9 +409,10 @@ function PreprocessingTab({ data }: { data: EEGData | null }) {
     </div>
   );
 
-  function applyFilters() {
+  async function applyFilters() {
     const selectedChs = data!.channels.filter((ch: string) => activeChannels[ch]);
     if (selectedChs.length === 0) return;
+    setLoading(true);
 
     const rawRows = data!.chartData.map((row: Record<string, number>) => {
       const nr: Record<string, number> = { timestamp: row.timestamp };
@@ -417,60 +420,69 @@ function PreprocessingTab({ data }: { data: EEGData | null }) {
       return nr;
     });
 
-    const carRows = rawRows.map((row: Record<string, number>) => {
-      const nr: Record<string, number> = { timestamp: row.timestamp };
-      if (carEnabled) {
-        const mean = selectedChs.reduce((s: number, ch: string) => s + row[ch], 0) / selectedChs.length;
-        selectedChs.forEach((ch: string) => { nr[ch] = row[ch] - mean; });
-      } else {
-        selectedChs.forEach((ch: string) => { nr[ch] = row[ch]; });
-      }
-      return nr;
-    });
+    const channelsData = selectedChs.map((ch: string) =>
+      rawRows.map((r: Record<string, number>) => r[ch])
+    );
 
-    const filteredRows = carRows.map((row: Record<string, number>, i: number, arr: Record<string, number>[]) => {
-      const nr: Record<string, number> = { timestamp: row.timestamp };
-      selectedChs.forEach((ch: string) => {
-        const prev = arr[i - 1]?.[ch] ?? row[ch];
-        const next = arr[i + 1]?.[ch] ?? row[ch];
-        nr[ch] = (prev + row[ch] + next) / 3;
-        if (notchEnabled) { nr[ch] = nr[ch] * 0.95; }
+    try {
+      const response = await fetch(`${BACKEND_URL}/filter`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          signal: channelsData[0],
+          sample_rate: data!.sr,
+          bandpass_low: bandpassLow,
+          bandpass_high: bandpassHigh,
+          notch_enabled: notchEnabled,
+          car_enabled: carEnabled,
+          channels: channelsData,
+          channel_names: selectedChs,
+        }),
       });
-      return nr;
-    });
 
-    const OFFSET = 25;
-    const offsetRows = filteredRows.map((row: Record<string, number>) => {
-      const nr: Record<string, number> = { timestamp: row.timestamp };
-      selectedChs.forEach((ch: string, i: number) => { nr[ch] = row[ch] + i * OFFSET; });
-      return nr;
-    });
+      const result = await response.json();
 
-    const ch1Signal = filteredRows.map((r: Record<string, number>) => r[selectedChs[0]]);
-    const fft = computeFFT(ch1Signal, data!.sr);
-    const powers: Record<string, number> = {};
-    selectedChs.forEach((ch: string) => {
-      const sig = filteredRows.map((r: Record<string, number>) => r[ch]);
-      powers[ch] = Math.sqrt(sig.reduce((s: number, v: number) => s + v * v, 0) / sig.length);
-    });
+      const OFFSET = 25;
+      const offsetRows = rawRows.map((row: Record<string, number>, rowIdx: number) => {
+        const nr: Record<string, number> = { timestamp: row.timestamp };
+        selectedChs.forEach((ch: string, i: number) => {
+          const filtered: number[] = result.filtered_channels[ch] || [];
+          nr[ch] = (filtered[rowIdx] ?? row[ch]) + i * OFFSET;
+        });
+        return nr;
+      });
 
-    setFilteredData({
-      fileName: data!.fileName,
-      chartData: offsetRows,
-      channels: selectedChs,
-      sr: data!.sr,
-      duration: data!.duration,
-      fftData: fft,
-      spectroData: computeSpectrogram(ch1Signal),
-      insights: generateInsights(fft, selectedChs.length),
-      channelPowers: powers,
-      bandPowers: { Delta: bandPower(fft, 0, 4), Theta: bandPower(fft, 4, 8), Alpha: bandPower(fft, 8, 13), Beta: bandPower(fft, 13, 30), Gamma: bandPower(fft, 30, 50) },
-    });
-    setProcessed(true);
+      const freqs: number[] = result.fft_freqs;
+      const magnitudes: number[] = result.fft_magnitudes;
+      const fftData = freqs.map((f: number, i: number) => ({ freq: f, magnitude: magnitudes[i] }));
+
+      const powers: Record<string, number> = {};
+      selectedChs.forEach((ch: string) => {
+        const sig: number[] = result.filtered_channels[ch] || [];
+        powers[ch] = Math.sqrt(sig.reduce((s: number, v: number) => s + v * v, 0) / (sig.length || 1));
+      });
+
+      setFilteredData({
+        fileName: data!.fileName,
+        chartData: offsetRows,
+        channels: selectedChs,
+        sr: data!.sr,
+        duration: data!.duration,
+        fftData: fftData,
+        spectroData: computeSpectrogram(result.filtered_channels[selectedChs[0]] || []),
+        insights: generateInsights(fftData, selectedChs.length),
+        channelPowers: powers,
+        bandPowers: result.band_powers,
+      });
+      setProcessed(true);
+    } catch (error) {
+      alert("Failed to connect to backend. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   const selectedChs = data.channels.filter((ch: string) => activeChannels[ch]);
-
   const vizTabs = [
     { id: "eeg", label: "Time Domain" },
     { id: "fft", label: "Frequency Domain" },
@@ -496,7 +508,7 @@ function PreprocessingTab({ data }: { data: EEGData | null }) {
                 color: isOn ? BRAND.primary : BRAND.textSec,
                 fontSize: "13px", fontWeight: 600, transition: "all 0.15s",
               }}>
-                <div style={{ width: "10px", height: "10px", borderRadius: "50%", backgroundColor: isOn ? BRAND.success : "#CBD5E1", transition: "background 0.15s" }} />
+                <div style={{ width: "10px", height: "10px", borderRadius: "50%", backgroundColor: isOn ? BRAND.success : "#CBD5E1" }} />
                 {ch}
                 <span style={{ fontSize: "11px", fontWeight: 500 }}>{isOn ? "ON" : "OFF"}</span>
               </button>
@@ -554,14 +566,14 @@ function PreprocessingTab({ data }: { data: EEGData | null }) {
         </div>
       </div>
 
-      <button onClick={applyFilters} disabled={selectedChs.length === 0} style={{
+      <button onClick={applyFilters} disabled={selectedChs.length === 0 || loading} style={{
         alignSelf: "flex-start", display: "flex", alignItems: "center", gap: "8px",
-        backgroundColor: selectedChs.length === 0 ? "#CBD5E1" : BRAND.primary,
+        backgroundColor: selectedChs.length === 0 || loading ? "#CBD5E1" : BRAND.primary,
         color: "white", border: "none", padding: "12px 28px", borderRadius: "10px",
-        fontSize: "14px", fontWeight: 700, cursor: selectedChs.length === 0 ? "not-allowed" : "pointer",
-        boxShadow: selectedChs.length === 0 ? "none" : `0 4px 12px ${BRAND.primary}44`, transition: "all 0.2s"
+        fontSize: "14px", fontWeight: 700, cursor: selectedChs.length === 0 || loading ? "not-allowed" : "pointer",
+        boxShadow: selectedChs.length === 0 || loading ? "none" : `0 4px 12px ${BRAND.primary}44`, transition: "all 0.2s"
       }}>
-        ⚡ Apply Preprocessing
+        {loading ? "⏳ Processing..." : "⚡ Apply Preprocessing"}
       </button>
 
       {processed && filteredData && (
