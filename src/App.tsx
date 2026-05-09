@@ -439,7 +439,7 @@ function PreprocessingTab({ data }: { data: EEGData | null }) {
       return nr;
     });
 
-    const OFFSET = 30;
+    const OFFSET = 25;
     const offsetRows = filteredRows.map((row: Record<string, number>) => {
       const nr: Record<string, number> = { timestamp: row.timestamp };
       selectedChs.forEach((ch: string, i: number) => { nr[ch] = row[ch] + i * OFFSET; });
@@ -604,7 +604,7 @@ function PreprocessingTab({ data }: { data: EEGData | null }) {
                     <XAxis dataKey="timestamp" stroke={BRAND.border} tick={{ fontSize: 10, fill: BRAND.textSec }} label={{ value: "Time (s)", position: "insideBottom", offset: -5, fill: BRAND.textSec, fontSize: 10 }} height={35} />
                     <YAxis stroke={BRAND.border} tick={{ fontSize: 10, fill: BRAND.textSec }} width={45} />
                     <Tooltip contentStyle={{ backgroundColor: BRAND.card, border: `1px solid ${BRAND.border}`, borderRadius: "6px", fontSize: "11px" }} />
-                    {data.channels.slice(0, 4).map((ch: string, i: number) => <Line key={ch} type="monotone" dataKey={ch} stroke={COLORS[i % COLORS.length]} dot={false} strokeWidth={1.2} />)}
+                    {data.channels.map((ch: string, i: number) => <Line key={ch} type="monotone" dataKey={ch} stroke={COLORS[i % COLORS.length]} dot={false} strokeWidth={1.2} />)}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
